@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+{% block title %}Text → Audio{% endblock %}
+{% block page_title %}Text → Audio{% endblock %}
+{% block page_desc %}Convert text to natural speech{% endblock %}
+
+{% block content %}
+<div class="two-col">
+  <div>
+    <div class="card">
+      <div class="card-label">Text to speak</div>
+      <textarea id="text-input" placeholder="Enter text to convert to speech…" rows="6"></textarea>
+      <div class="chips mt-half">
+        <span class="chip" onclick="setText('Hello! Welcome to AI Studio. Your multimodal AI assistant is ready.')">👋 Welcome</span>
+        <span class="chip" onclick="setText('The quick brown fox jumps over the lazy dog. Pack my box with five dozen liquor jugs.')">🦊 Pangram</span>
+        <span class="chip" onclick="setText('Artificial intelligence is transforming the world in remarkable ways.')">🤖 AI quote</span>
+      </div>
+
+      <div class="card-label mt-1">Language</div>
+      <select id="lang-select" style="width:100%">
+        <option value="en">🇬🇧 English</option>
+        <option value="fr">🇫🇷 French</option>
+        <option value="es">🇪🇸 Spanish</option>
+        <option value="de">🇩🇪 German</option>
+        <option value="hi">🇮🇳 Hindi</option>
+        <option value="ta">🇮🇳 Tamil</option>
+        <option value="ja">🇯🇵 Japanese</option>
+        <option value="zh">🇨🇳 Chinese</option>
+        <option value="ar">🇸🇦 Arabic</option>
+        <option value="pt">🇧🇷 Portuguese</option>
+      </select>
+
+      <div class="btn-row mt-1">
+        <button class="btn btn-primary" id="gen-btn" onclick="generateAudio()">🔊 Generate Audio</button>
+        <button class="btn btn-secondary" onclick="clearAudio()">Clear</button>
+      </div>
+      <div class="info-box mt-1">
+        💡 Requires the text-to-speech dependency. Supports 30+ languages.
+      </div>
+    </div>
+  </div>
+  <div>
+    <div class="card full-height">
+      <div class="card-label">Generated audio</div>
+      <div class="output-box empty" id="output">Your audio will be generated here…</div>
+      <audio id="audio-result" controls style="display:none;width:100%;margin-top:12px"></audio>
+      <div class="btn-row mt-half" id="audio-actions" style="display:none">
+        <a id="audio-download" class="btn btn-secondary btn-sm" download="speech.mp3">💾 Download MP3</a>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function setText(t){ document.getElementById('text-input').value = t; }
+function clearAudio(){
+  document.getElementById('text-input').value='';
+  document.getElementById('audio-result').style.display='none';
+  document.getElementById('audio-actions').style.display='none';
+  showEmpty('output');
+}
+
+async function generateAudio() {
+  const text = document.getElementById('text-input').value.trim();
+  const lang = document.getElementById('lang-select').value;
+  if (!text) return showError('output','Please enter some text.');
+  setLoading('output','gen-btn','Converting text to speech…');
+  document.getElementById('audio-result').style.display = 'none';
+  document.getElementById('audio-actions').style.display = 'none';
+
+  try {
+    const res = await fetch('/api/text-to-audio',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({text, lang})
+    });
+    const data = await res.json();
+    if (!data.success) throw new Error(data.error);
+
+    document.getElementById('output').className = 'output-box';
+    document.getElementById('output').textContent = '✅ Audio generated successfully!';
+
+    const audio = document.getElementById('audio-result');
+    audio.src = data.audio_url;
+    audio.style.display = 'block';
+    audio.play();
+
+    const dl = document.getElementById('audio-download');
+    dl.href = data.audio_url;
+    document.getElementById('audio-actions').style.display = 'flex';
+  } catch(e) {
+    showError('output', e.message);
+  } finally {
+    resetBtn('gen-btn','🔊 Generate Audio');
+  }
+}
+</script>
+{% endblock %}

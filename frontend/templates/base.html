@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>{% block title %}AI Studio{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  {% block head %}{% endblock %}
+</head>
+<body>
+
+<div class="app-shell">
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <span class="logo-dot"></span>
+      AI Studio
+    </div>
+    <nav class="sidebar-nav">
+      <a href="/" class="nav-item {% if request.path == '/' %}active{% endif %}">
+        <span class="nav-icon">🏠</span> Home
+      </a>
+      <a href="/text2text" class="nav-item {% if '/text2text' in request.path %}active{% endif %}">
+        <span class="nav-icon">💬</span> Text → Text
+      </a>
+      <a href="/text2image" class="nav-item {% if '/text2image' in request.path %}active{% endif %}">
+        <span class="nav-icon">🎨</span> Text → Image
+      </a>
+      <a href="/image2text" class="nav-item {% if '/image2text' in request.path %}active{% endif %}">
+        <span class="nav-icon">🔍</span> Image → Text
+      </a>
+      <a href="/audio2text" class="nav-item {% if '/audio2text' in request.path %}active{% endif %}">
+        <span class="nav-icon">🎙️</span> Audio → Text
+      </a>
+      <a href="/text2audio" class="nav-item {% if '/text2audio' in request.path %}active{% endif %}">
+        <span class="nav-icon">🔊</span> Text → Audio
+      </a>
+      <a href="/img2img" class="nav-item {% if '/img2img' in request.path %}active{% endif %}">
+        <span class="nav-icon">🖼️</span> Image → Image
+      </a>
+    </nav>
+    <div class="sidebar-footer">
+      <a href="/api/health" target="_blank" class="health-link">⚙️ API Status</a>
+    </div>
+  </aside>
+
+  <!-- Main area -->
+  <div class="main-area">
+    <header class="topbar">
+      <div>
+        <h1 class="page-title">{% block page_title %}AI Studio{% endblock %}</h1>
+<p class="page-desc">{% block page_desc %}&nbsp;{% endblock %}</p>
+      </div>
+
+    </header>
+
+    <main class="content">
+      {% block content %}{% endblock %}
+    </main>
+  </div>
+
+</div>
+
+<script src="{{ url_for('static', filename='js/app.js') }}"></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

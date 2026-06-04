@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block title %}AI Studio - Home{% endblock %}
+{% block page_title %}Welcome to AI Studio{% endblock %}
+{% block page_desc %}Choose a mode below to get started{% endblock %}
+
+{% block content %}
+
+
+<div class="home-grid">
+  <a href="/text2text" class="mode-card">
+    <div class="mode-icon">💬</div>
+    <div class="mode-title">Text → Text</div>
+Chat, Q&amp;A, code, translation
+  </a>
+  <a href="/text2image" class="mode-card">
+    <div class="mode-icon">🎨</div>
+    <div class="mode-title">Text → Image</div>
+    <div class="mode-desc">Generate high-quality AI images from text prompts</div>
+
+  </a>
+  <a href="/image2text" class="mode-card">
+    <div class="mode-icon">🔍</div>
+    <div class="mode-title">Image → Text</div>
+    <div class="mode-desc">Describe, analyze or caption any image</div>
+  </a>
+  <a href="/audio2text" class="mode-card">
+    <div class="mode-icon">🎙️</div>
+    <div class="mode-title">Audio → Text</div>
+    <div class="mode-desc">Convert speech to accurate text</div>
+  </a>
+  <a href="/text2audio" class="mode-card">
+    <div class="mode-icon">🔊</div>
+    <div class="mode-title">Text → Audio</div>
+    <div class="mode-desc">Convert any text to natural speech</div>
+  </a>
+
+  <a href="/img2img" class="mode-card">
+    <div class="mode-icon">🖼️</div>
+    <div class="mode-title">Image → Image</div>
+    <div class="mode-desc">Transform images with AI style transfer</div>
+  </a>
+</div>
+
+<div class="card mt-1">
+  <div class="card-label">Setup checklist</div>
+  <div class="checklist">
+    <div class="check-item">✅ Configure API keys in the .env file</div>
+    <div class="check-item">✅ Install required AI dependencies</div>
+    <div class="check-item">✅ Verify all AI modules are enabled</div>
+    <div class="check-item">✅ Check API and service status</div>
+  </div>
+</div>
+{% endblock %}

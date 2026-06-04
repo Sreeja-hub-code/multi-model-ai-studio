@@ -1,0 +1,15 @@
+flask==3.0.3
+flask-cors==4.0.1
+flask-sqlalchemy==3.1.1
+requests==2.32.3
+pillow==10.4.0
+
+python-dotenv==1.0.1
+transformers==4.41.2
+torch==2.3.1
+scipy==1.13.1
+soundfile==0.12.1
+gtts==2.5.1
+openai-whisper==20231117
+diffusers==0.29.0
+accelerate==0.31.0

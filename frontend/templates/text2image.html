@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% block title %}Text → Image{% endblock %}
+{% block page_title %}Text → Image{% endblock %}
+{% block page_desc %}Generate high-quality AI images from text prompts{% endblock %}
+
+
+{% block content %}
+<div class="two-col">
+  <div>
+    <div class="card">
+      <div class="card-label">Image description</div>
+      <textarea id="prompt" placeholder="Describe the image you want to generate in detail…" rows="5"></textarea>
+      <div class="chips mt-half">
+        <span class="chip" onclick="setPrompt('A serene mountain lake at golden hour, reflections, ultra realistic, 4K')">🏔️ Mountain lake</span>
+        <span class="chip" onclick="setPrompt('Futuristic cyberpunk city at night, neon lights, flying cars, rain')">🌆 Cyberpunk city</span>
+        <span class="chip" onclick="setPrompt('Cozy coffee shop interior, warm lighting, rain outside, watercolor style')">☕ Coffee shop</span>
+        <span class="chip" onclick="setPrompt('Portrait of a majestic lion in the savanna, golden light, photorealistic')">🦁 Lion portrait</span>
+      </div>
+      <div class="btn-row mt-1">
+        <button class="btn btn-primary" id="gen-btn" onclick="generateImage()">🎨 Generate Image</button>
+        <button class="btn btn-secondary" onclick="clearImage()">Clear</button>
+      </div>
+      <div class="info-box mt-1">
+        💡 Requires required image generation access. Uses advanced AI image generation.
+
+      </div>
+    </div>
+  </div>
+  <div>
+    <div class="card full-height">
+      <div class="card-label">Generated image</div>
+      <div class="output-box empty" id="output">Your image will appear here…</div>
+      <img id="result-img" style="display:none;width:100%;border-radius:10px;margin-top:10px" alt="Generated image"/>
+      <div class="btn-row mt-half" id="img-actions" style="display:none">
+        <a id="download-link" class="btn btn-secondary btn-sm" download="generated.png">💾 Download</a>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function setPrompt(t){ document.getElementById('prompt').value = t; }
+function clearImage(){
+  document.getElementById('prompt').value='';
+  document.getElementById('result-img').style.display='none';
+  document.getElementById('img-actions').style.display='none';
+  showEmpty('output');
+}
+
+async function generateImage() {
+  const prompt = document.getElementById('prompt').value.trim();
+  if (!prompt) return showError('output','Please enter an image description.');
+  setLoading('output','gen-btn','Generating image (may take 30–60s)…');
+  document.getElementById('result-img').style.display='none';
+  document.getElementById('img-actions').style.display='none';
+
+  try {
+    const res = await fetch('/api/text-to-image',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({prompt})
+    });
+    const data = await res.json();
+    if (!data.success) throw new Error(data.error);
+
+    const box = document.getElementById('output');
+    box.textContent = '';
+    box.className = 'output-box';
+    const img = document.getElementById('result-img');
+    img.src = data.image_url;
+    img.style.display = 'block';
+    const dl = document.getElementById('download-link');
+    dl.href = data.image_url;
+    document.getElementById('img-actions').style.display = 'flex';
+  } catch(e) {
+    showError('output', e.message);
+  } finally {
+    resetBtn('gen-btn','🎨 Generate Image');
+  }
+}
+</script>
+{% endblock %}

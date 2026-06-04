@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block title %}Text → Text{% endblock %}
+{% block page_title %}Text → Text{% endblock %}
+
+
+{% block content %}
+<div class="two-col">
+  <div>
+    <div class="card">
+      <div class="card-label">Your prompt</div>
+      <textarea id="prompt" placeholder="Ask anything — questions, coding, translation, writing…" rows="6"></textarea>
+      <div class="chips mt-half">
+        <span class="chip" onclick="setPrompt('Explain quantum computing in simple terms')">Explain quantum computing</span>
+        <span class="chip" onclick="setPrompt('Write a Python function to reverse a string')">Python function</span>
+        <span class="chip" onclick="setPrompt('Give me 3 productivity tips for developers')">Productivity tips</span>
+        <span class="chip" onclick="setPrompt('Translate hello world to French, Spanish and Hindi')">Translate text</span>
+      </div>
+      <div class="btn-row mt-1">
+        <button class="btn btn-primary" id="gen-btn" onclick="generateText()">✨ Generate</button>
+        <button class="btn btn-secondary" onclick="clearAll('prompt','output')">Clear</button>
+      </div>
+    </div>
+  </div>
+  <div>
+    <div class="card full-height">
+      <div class="card-label">Response</div>
+      <div class="output-box empty" id="output">Your response will appear here…</div>
+      <div class="copy-row mt-half">
+        <button class="btn btn-secondary btn-sm" onclick="copyOutput('output')">📋 Copy</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function setPrompt(text) {
+  document.getElementById('prompt').value = text;
+}
+
+async function generateText() {
+  const prompt = document.getElementById('prompt').value.trim();
+if (!prompt) return showError('output', 'Please enter a prompt.');
+  setLoading('output', 'gen-btn', 'Thinking…');
+
+  try {
+    const res = await fetch('/api/text-to-text', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ prompt })
+    });
+    const data = await res.json();
+    if (!data.success) throw new Error(data.error);
+    showResult('output', data.response);
+  } catch(e) {
+    showError('output', e.message);
+  } finally {
+    resetBtn('gen-btn', '✨ Generate');
+  }
+}
+</script>
+{% endblock %}

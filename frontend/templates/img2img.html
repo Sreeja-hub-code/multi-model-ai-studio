@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+{% block title %}Image → Image{% endblock %}
+{% block page_title %}Image → Image{% endblock %}
+{% block page_desc %}Transform images with AI style transfer{% endblock %}
+
+{% block content %}
+<div class="two-col">
+  <div>
+    <div class="card">
+      <div class="card-label">Source image</div>
+      <label class="file-drop" id="drop-zone">
+        <input type="file" id="image-file" accept="image/*" onchange="previewFile('image-file','preview-img','drop-zone')">
+        <div class="drop-icon">🖼️</div>
+        <p>Click or drag image here<br><strong>JPG, PNG, WebP</strong></p>
+      </label>
+      <img id="preview-img" class="preview-img" style="display:none" alt="Source image"/>
+      <button class="btn btn-secondary btn-sm mt-half" id="change-btn" style="display:none"
+        onclick="resetFile('image-file','preview-img','drop-zone','change-btn')">↩ Change image</button>
+
+      <div class="card-label mt-1">Transformation prompt</div>
+      <textarea id="prompt" placeholder="Describe how to transform this image…" rows="3"></textarea>
+      <div class="chips mt-half">
+        <span class="chip" onclick="setPrompt('Convert to watercolor painting style, soft colors')">🎨 Watercolor</span>
+        <span class="chip" onclick="setPrompt('Transform into anime illustration style')">🌸 Anime</span>
+        <span class="chip" onclick="setPrompt('Convert to detailed pencil sketch, black and white')">✏️ Sketch</span>
+        <span class="chip" onclick="setPrompt('Apply oil painting style on canvas texture')">🖌️ Oil paint</span>
+        <span class="chip" onclick="setPrompt('Make it look like a vintage polaroid photograph')">📸 Vintage</span>
+        <span class="chip" onclick="setPrompt('Apply cyberpunk neon color grading')">🌆 Cyberpunk</span>
+      </div>
+      <div class="btn-row mt-1">
+        <button class="btn btn-primary" id="gen-btn" onclick="transformImage()">✨ Transform</button>
+        <button class="btn btn-secondary" onclick="clearTransform()">Clear</button>
+      </div>
+      <div class="info-box mt-1">
+        💡 Requires required image generation access. Uses an image-to-image model.
+      </div>
+    </div>
+  </div>
+  <div>
+    <div class="card full-height">
+      <div class="card-label">Transformed image</div>
+      <div class="output-box empty" id="output">Upload an image and choose a transformation…</div>
+      <img id="result-img" style="display:none;width:100%;border-radius:10px;margin-top:10px" alt="Transformed"/>
+      <div class="btn-row mt-half" id="img-actions" style="display:none">
+        <a id="download-link" class="btn btn-secondary btn-sm" download="transformed.png">💾 Download</a>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function setPrompt(t){ document.getElementById('prompt').value = t; }
+function clearTransform(){
+  document.getElementById('prompt').value='';
+  resetFile('image-file','preview-img','drop-zone','change-btn');
+  document.getElementById('result-img').style.display='none';
+  document.getElementById('img-actions').style.display='none';
+  showEmpty('output');
+}
+
+async function transformImage() {
+  const file = document.getElementById('image-file').files[0];
+  const prompt = document.getElementById('prompt').value.trim();
+  if (!file) return showError('output','Please upload an image.');
+  if (!prompt) return showError('output','Please enter a transformation prompt.');
+  setLoading('output','gen-btn','Transforming image (may take 30–90s)…');
+  document.getElementById('result-img').style.display='none';
+  document.getElementById('img-actions').style.display='none';
+
+  const formData = new FormData();
+  formData.append('image', file);
+  formData.append('prompt', prompt);
+
+  try {
+    const res = await fetch('/api/image-to-image', { method:'POST', body: formData });
+    const data = await res.json();
+    if (!data.success) throw new Error(data.error);
+
+    document.getElementById('output').className = 'output-box';
+    document.getElementById('output').textContent = '';
+    const img = document.getElementById('result-img');
+    img.src = data.image_url; img.style.display = 'block';
+    const dl = document.getElementById('download-link');
+    dl.href = data.image_url;
+    document.getElementById('img-actions').style.display = 'flex';
+  } catch(e) {
+    showError('output', e.message);
+  } finally {
+    resetBtn('gen-btn','✨ Transform');
+  }
+}
+</script>
+{% endblock %}

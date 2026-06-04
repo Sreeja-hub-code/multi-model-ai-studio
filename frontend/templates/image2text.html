@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block title %}Image → Text{% endblock %}
+{% block page_title %}Image → Text{% endblock %}
+
+
+{% block content %}
+<div class="two-col">
+  <div>
+    <div class="card">
+      <div class="card-label">Upload image</div>
+      <label class="file-drop" id="drop-zone" ondragover="handleDragOver(event)" ondrop="handleDrop(event,'image-file','preview-img','drop-zone')">
+        <input type="file" id="image-file" accept="image/*" onchange="previewFile('image-file','preview-img','drop-zone')">
+        <div class="drop-icon">📷</div>
+        <p>Click or drag &amp; drop image here<br><strong>JPG, PNG, WebP, GIF</strong></p>
+      </label>
+      <img id="preview-img" class="preview-img" style="display:none" alt="Preview"/>
+      <button class="btn btn-secondary btn-sm mt-half" id="change-btn" style="display:none" onclick="resetFile('image-file','preview-img','drop-zone','change-btn')">↩ Change image</button>
+
+      <div class="card-label mt-1">Analysis mode</div>
+      <div class="chips">
+        <span class="chip selected" id="mode-describe" onclick="selectMode('describe')">📝 Describe</span>
+        <span class="chip" id="mode-analyze" onclick="selectMode('analyze')">🔎 Analyze</span>
+        <span class="chip" id="mode-extract" onclick="selectMode('extract')">📋 Extract text</span>
+        <span class="chip" id="mode-caption" onclick="selectMode('caption')">✍️ Caption</span>
+      </div>
+      <div class="btn-row mt-1">
+        <button class="btn btn-primary" id="gen-btn" onclick="analyzeImage()">🔍 Analyze Image</button>
+      </div>
+    </div>
+  </div>
+  <div>
+    <div class="card full-height">
+      <div class="card-label">Analysis result</div>
+      <div class="output-box empty" id="output">Upload an image to begin analysis…</div>
+      <div class="copy-row mt-half">
+        <button class="btn btn-secondary btn-sm" onclick="copyOutput('output')">📋 Copy</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let currentMode = 'describe';
+function selectMode(m) {
+  currentMode = m;
+  ['describe','analyze','extract','caption'].forEach(x => {
+    document.getElementById('mode-'+x).className = 'chip' + (x===m?' selected':'');
+  });
+}
+
+async function analyzeImage() {
+  const file = document.getElementById('image-file').files[0];
+  if (!file) return showError('output','Please upload an image first.');
+setLoading('output','gen-btn','Analyzing image…');
+
+  const formData = new FormData();
+  formData.append('image', file);
+  formData.append('mode', currentMode);
+
+  try {
+    const res = await fetch('/api/image-to-text', { method:'POST', body: formData });
+    const data = await res.json();
+    if (!data.success) throw new Error(data.error);
+    showResult('output', data.response);
+  } catch(e) {
+    showError('output', e.message);
+  } finally {
+    resetBtn('gen-btn','🔍 Analyze Image');
+  }
+}
+</script>
+{% endblock %}

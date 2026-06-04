@@ -1,0 +1,266 @@
+{% extends "base.html" %}
+{% block title %}Audio → Text{% endblock %}
+{% block page_desc %}Convert audio into accurate text transcripts{% endblock %}
+{% block page_title %}Audio → Text{% endblock %}
+
+
+{% block content %}
+<div class="two-col">
+  <div>
+    <div class="card">
+      <div class="card-label">Upload audio file</div>
+      <label class="file-drop" id="drop-zone">
+        <input type="file" id="audio-file" accept="audio/*" onchange="handleAudioUpload()">
+        <div class="drop-icon">🎙️</div>
+        <p>Click to upload audio<br><strong>MP3, WAV, M4A, OGG, FLAC</strong></p>
+      </label>
+      <audio id="audio-player" controls style="display:none;width:100%;margin-top:10px"></audio>
+      <div id="file-info" class="file-info" style="display:none"></div>
+
+      <div class="btn-row mt-1">
+        <button class="btn btn-primary" id="gen-btn" onclick="transcribeAudio()">📝 Transcribe</button>
+        <button class="btn btn-secondary" onclick="resetAudio()">Clear</button>
+      </div>
+      <div class="info-box mt-1">
+        💡 Requires the speech-to-text dependency. First run may download a model (~150MB).
+      </div>
+    </div>
+
+    <div class="card mt-1">
+      <div class="card-label">LIVE microphone transcription</div>
+
+      <div class="btn-row" style="gap:12px;flex-wrap:wrap;">
+        <button class="btn btn-primary" id="live-start" onclick="startLive()">🎤 Start Recording</button>
+        <button class="btn btn-secondary" id="live-stop" onclick="stopLive()" disabled>⏹ Stop Recording</button>
+      </div>
+
+      <div class="mt-half" style="margin-top:10px;">
+        <div class="info-box" id="live-indicator" style="display:flex;align-items:center;gap:10px;">
+          <span id="live-dot" style="width:10px;height:10px;border-radius:50%;background:rgba(83,74,183,0.35);display:inline-block;"></span>
+          <span id="live-indicator-text">Not recording</span>
+        </div>
+        <div id="live-status" class="file-info" style="margin-top:8px;">Status will appear here…</div>
+      </div>
+
+      <div class="output-box empty" id="live-output" style="margin-top:12px;min-height:130px;" data-placeholder="Live transcript will appear here…"></div>
+      <div class="copy-row mt-half">
+        <button class="btn btn-secondary btn-sm" onclick="copyOutput('live-output')">📋 Copy live transcript</button>
+      </div>
+    </div>
+  </div>
+
+  <div>
+    <div class="card full-height">
+      <div class="card-label">Transcript</div>
+      <div class="output-box empty" id="output">Your transcript will appear here…</div>
+      <div class="copy-row mt-half">
+        <button class="btn btn-secondary btn-sm" onclick="copyOutput('output')">📋 Copy transcript</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let liveSessionId = null;
+let liveEventSource = null;
+let liveReconnectTimer = null;
+let liveFinalText = "";
+let liveStopping = false;
+
+
+function setLiveStatus(msg) {
+  const el = document.getElementById('live-status');
+  if (!el) return;
+  el.textContent = msg;
+}
+
+function setLiveRecording(isRecording) {
+  const dot = document.getElementById('live-dot');
+  const txt = document.getElementById('live-indicator-text');
+  const startBtn = document.getElementById('live-start');
+  const stopBtn = document.getElementById('live-stop');
+
+  if (dot) {
+    if (isRecording) {
+      dot.style.background = 'var(--purple-600)';
+      dot.style.boxShadow = '0 0 0 6px rgba(83,74,183,0.12)';
+    } else {
+      dot.style.background = 'rgba(83,74,183,0.35)';
+      dot.style.boxShadow = 'none';
+    }
+  }
+  if (txt) txt.textContent = isRecording ? 'Recording…' : 'Not recording';
+  if (startBtn) startBtn.disabled = isRecording;
+  if (stopBtn) stopBtn.disabled = !isRecording;
+}
+
+function handleAudioUpload() {
+  const file = document.getElementById('audio-file').files[0];
+  if (!file) return;
+  const url = URL.createObjectURL(file);
+  const player = document.getElementById('audio-player');
+  player.src = url; player.style.display = 'block';
+  document.getElementById('drop-zone').style.display = 'none';
+  const info = document.getElementById('file-info');
+  info.textContent = `📁 ${file.name} (${(file.size/1024/1024).toFixed(2)} MB)`;
+  info.style.display = 'block';
+}
+
+function resetAudio() {
+  document.getElementById('audio-file').value = '';
+  document.getElementById('audio-player').style.display = 'none';
+  document.getElementById('audio-player').src = '';
+  document.getElementById('drop-zone').style.display = 'flex';
+  document.getElementById('file-info').style.display = 'none';
+  showEmpty('output');
+}
+
+async function transcribeAudio() {
+  const file = document.getElementById('audio-file').files[0];
+  if (!file) return showError('output','Please upload an audio file first.');
+  setLoading('output','gen-btn','Converting audio to text (may take a moment)…');
+
+  const formData = new FormData();
+  formData.append('audio', file);
+
+  try {
+    const res = await fetch('/api/audio-to-text', { method:'POST', body: formData });
+    const data = await res.json();
+    if (!data.success) throw new Error(data.error);
+    showResult('output', data.transcript);
+  } catch(e) {
+    showError('output', e.message);
+  } finally {
+    resetBtn('gen-btn','📝 Transcribe');
+  }
+}
+
+function updateLiveTranscript(text) {
+  const out = document.getElementById('live-output');
+  if (!out) return;
+  out.className = 'output-box';
+  out.textContent = text;
+}
+
+function clearLiveTranscript() {
+  const out = document.getElementById('live-output');
+  if (!out) return;
+  liveFinalText = "";
+  out.className = 'output-box empty';
+  out.textContent = out.dataset.placeholder || 'Live transcript will appear here…';
+}
+
+function connectLiveStream() {
+  if (!liveSessionId || liveStopping) return;
+
+  // Prevent duplicate EventSource instances.
+  if (liveEventSource) {
+    try { liveEventSource.close(); } catch (e) {}
+    liveEventSource = null;
+  }
+
+
+  const url = `/api/audio-to-text/live-stream?session_id=${encodeURIComponent(liveSessionId)}`;
+  setLiveStatus('Connecting to live transcription…');
+
+  liveEventSource = new EventSource(url);
+
+  liveEventSource.addEventListener('status', (e) => {
+    try {
+      const data = JSON.parse(e.data || '{}');
+      if (data.message) setLiveStatus(data.message);
+    } catch {}
+  });
+
+  liveEventSource.addEventListener('partial', (e) => {
+    try {
+      const data = JSON.parse(e.data || '{}');
+      const text = (data.text || '').trim();
+      if (!text) return;
+      updateLiveTranscript(text);
+    } catch {}
+  });
+
+  liveEventSource.addEventListener('final', (e) => {
+    try {
+      const data = JSON.parse(e.data || '{}');
+      const text = (data.text || '').trim();
+      if (text) {
+        liveFinalText = text;
+        updateLiveTranscript(text);
+      }
+      setLiveStatus('Final transcript received.');
+      setLiveRecording(false);
+      try { liveEventSource.close(); } catch (err) {}
+      liveEventSource = null;
+    } catch {}
+  });
+
+  liveEventSource.addEventListener('error', (e) => {
+    if (!liveSessionId) return;
+
+    // readyState: 2 means CLOSED
+    if (liveEventSource && liveEventSource.readyState === EventSource.CLOSED) {
+      setLiveStatus('Live connection closed.');
+      return;
+    }
+
+    setLiveStatus('Live stream disconnected. Attempting to reconnect…');
+
+    if (liveReconnectTimer) clearTimeout(liveReconnectTimer);
+    liveReconnectTimer = setTimeout(() => {
+      if (!liveSessionId) return;
+      connectLiveStream();
+    }, 1000);
+  });
+}
+
+async function startLive() {
+  if (liveSessionId || liveStopping) return;
+
+
+  clearLiveTranscript();
+  setLiveRecording(true);
+  setLiveStatus('Requesting microphone permission and starting…');
+
+  liveSessionId = (crypto && crypto.randomUUID) ? crypto.randomUUID() : String(Date.now());
+
+  try {
+    connectLiveStream();
+  } catch (err) {
+    setLiveStatus('Failed to start live transcription: ' + err.message);
+    setLiveRecording(false);
+    liveSessionId = null;
+  }
+}
+
+async function stopLive() {
+  if (!liveSessionId) return;
+
+  const sid = liveSessionId;
+  liveSessionId = null; // prevents reconnect
+
+  try {
+    if (liveEventSource) {
+      try { liveEventSource.close(); } catch (e) {}
+      liveEventSource = null;
+    }
+  } catch {}
+
+  // Ask backend to stop the session (final event may still arrive before stream closes)
+  try {
+    await fetch('/api/audio-to-text/live-stop', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({session_id: sid}),
+    });
+  } catch (e) {}
+
+  setLiveStatus('Stopping…');
+  setLiveRecording(false);
+}
+</script>
+{% endblock %}
+

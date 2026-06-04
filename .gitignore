@@ -1,0 +1,9 @@
+.env
+venv/
+__pycache__/
+backend/generated/
+backend/uploads/
+instance/
+*.db
+*.mp3
+*.wav
